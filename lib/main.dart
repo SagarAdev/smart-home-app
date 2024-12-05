@@ -1,31 +1,44 @@
 import 'dart:math';
+import 'package:esp32_temp_humid/tab_index_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'components/simple_tabbar.dart';
 import 'device_card.dart';
 import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:esp32_temp_humid/services/firestore.dart';
+import 'models/device.dart';
 import 'sensorDataCard.dart';
-import 'package:animated_toggle_switch/animated_toggle_switch.dart';
+import 'package:esp32_temp_humid/pages/settings_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+  runApp(ChangeNotifierProvider(
+      create: (context) => TabIndexProvider(), child: const MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'Smart Home',
-      home: MyHomePage(title: 'Smart Home'),
-    );
+    return MaterialApp(
+        title: 'Smart Home',
+        home: const MyHomePage(title: 'Smart Home'),
+        routes: {
+          '/setting': (context) => const Setting(),
+        });
   }
 }
 
@@ -43,7 +56,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String _temperature = "?";
   String _humidity = "?";
-  late Future<QuerySnapshot> _latestData;
 
   Random random = Random();
 
@@ -69,20 +81,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final tabIndexProvider = Provider.of<TabIndexProvider>(context);
     return Scaffold(
         backgroundColor: Color.fromARGB(255, 249, 249, 249),
         appBar: AppBar(
           title: const Text(
             "Smart Home",
             style: TextStyle(
-              fontFamily: 'Lexend',
-              fontSize: 25.0,
-              fontWeight: FontWeight.w700,
-            ),
+                fontFamily: 'Lexend',
+                fontSize: 25.0,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2.0),
           ),
           actions: <Widget>[
             IconButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pushNamed(context, '/setting');
+                },
                 icon: const Icon(
                   Icons.settings,
                   size: 30.0,
@@ -98,94 +113,98 @@ class _MyHomePageState extends State<MyHomePage> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 3 / 2,
-                      ),
-                      itemCount: 2, // Two cards for Temperature and Humidity
-                      shrinkWrap:
-                          true, // Ensures GridView doesn't expand unnecessarily
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return DataCard(
-                            dataTitle: "Temperature",
-                            dataValue: _temperature,
-                            dataIcon: Icons.device_thermostat_outlined,
-                          );
-                        } else {
-                          return DataCard(
-                            dataTitle: "Humidity",
-                            dataValue: _humidity,
-                            dataIcon: Icons.water_drop_outlined,
-                          );
-                        }
-                      },
+                  GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 3 / 2,
                     ),
+                    itemCount: 2, // Two cards for Temperature and Humidity
+                    shrinkWrap:
+                        true, // Ensures GridView doesn't expand unnecessarily
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return DataCard(
+                          dataTitle: "Temperature",
+                          dataValue: _temperature,
+                          dataIcon: Icons.device_thermostat_outlined,
+                        );
+                      } else {
+                        return DataCard(
+                          dataTitle: "Humidity",
+                          dataValue: _humidity,
+                          dataIcon: Icons.water_drop_outlined,
+                        );
+                      }
+                    },
                   ),
                   Center(
-                    child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black
-                        ),
-                        onPressed:fetchData,
-                        child: const Text(
-                          "Refresh",
-                          style: TextStyle(
-                            fontFamily: 'Lexend',
-                            fontSize: 20.0,
-                            color: Colors.white,
-                          ),
-                        )
+                    child: Container(
+                      margin: EdgeInsets.fromLTRB(0, 10.0, 0, 15.0),
+                      child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black),
+                          onPressed: fetchData,
+                          child: const Text(
+                            "Refresh",
+                            style: TextStyle(
+                              fontFamily: 'Lexend',
+                              fontSize: 20.0,
+                              color: Colors.white,
+                            ),
+                          )),
                     ),
                   ),
-                  Container(
-                      child: Column(
+                  Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("Living Room",
-                              style: TextStyle(
-                                fontSize: 23.0,
-                                fontFamily: 'Lexend',
-                                fontWeight: FontWeight.bold,
-                              )),
-                          Text("Bedroom",
-                              style: TextStyle(
-                                fontSize: 20.0,
-                                fontFamily: 'Lexend',
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey.shade600,
-
-                              )),
-                          Text("Kitchen",
-                              style: TextStyle(
-                                fontSize: 20.0,
-                                fontFamily: 'Lexend',
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey.shade600,
-                              )),
-                        ],
-                      ),
-                      DeviceCard(deviceName: 'Lights',deviceIcon: Icons.light_mode_outlined),
-                      DeviceCard(deviceName: 'AC',deviceIcon: Icons.air),
-                      DeviceCard(deviceName: 'Fan',deviceIcon: Icons.mode_fan_off_outlined),
-                      DeviceCard(deviceName: 'Smart TV',deviceIcon: Icons.screenshot_monitor),
-                      const SizedBox(
-                        height: 100,
-                      ),
+                      const SimpleTabbar(),
+                      Builder(builder: (context){
+                        if(tabIndexProvider.index == 0){
+                          return  const Column(
+                            children: [
+                              DeviceCard(deviceName: 'Lights',deviceIcon: Icons.light_mode_outlined),
+                              DeviceCard(deviceName: 'AC',deviceIcon: Icons.air),
+                              DeviceCard(deviceName: 'Fan',deviceIcon: Icons.mode_fan_off_outlined),
+                              DeviceCard(deviceName: 'Smart TV',deviceIcon: Icons.screenshot_monitor),
+                            ],
+                          );
+                        }
+                        else if(tabIndexProvider.index == 1){
+                          return const Column(
+                            children: [
+                              DeviceCard(deviceName: 'Lights',deviceIcon: Icons.light_mode_outlined),
+                              DeviceCard(deviceName: 'AC',deviceIcon: Icons.air),
+                              DeviceCard(deviceName: 'Fan',deviceIcon: Icons.mode_fan_off_outlined),
+                            ],
+                          );
+                        }
+                        else if(tabIndexProvider.index == 2){
+                          return const Column(
+                            children: [
+                              DeviceCard(deviceName: 'Lights',deviceIcon: Icons.light_mode_outlined),
+                              DeviceCard(deviceName: 'AC',deviceIcon: Icons.air),
+                            ],
+                          );
+                        }
+                        else{
+                          return
+                              const Center(
+                                child: Text(
+                                  "Add a device",
+                                style: TextStyle(
+                                  fontSize: 15.0,
+                                  fontFamily: 'Lexend',
+                                  letterSpacing: 2.0
+                                ) ,
+                              ),);
+                        }
+                      })
                     ],
-                  ))
+                  )
                 ],
               )),
         ));
   }
 }
-
-
-
